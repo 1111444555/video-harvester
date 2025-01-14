@@ -1,0 +1,9 @@
+{
+    "videos": [
+      "https://www.youtube.com/watch?v=soVSPe3OBKU",
+      "https://www.youtube.com/watch?v=COhEskDuI4M"
+    ],
+    "whisper_model":
+    "tiny"
+  }
+  

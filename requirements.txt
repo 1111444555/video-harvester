@@ -1,0 +1,5 @@
+tqdm
+yt-dlp
+pydub
+openai-whisper
+pandas
