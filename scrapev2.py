@@ -1,25 +1,39 @@
 import yt_dlp
-from pydub import AudioSegment
 import whisper
 import pandas as pd
 import json
 import os
+import requests
+from bs4 import BeautifulSoup
 
 # Load configuration
 with open('./config.json', 'r') as f:
     config = json.load(f)
 
 # Initialize Whisper model
-model = whisper.load_model("tiny")
+model_name=config["whisper_model"]
+model = whisper.load_model(model_name)
 
 # Prepare list to store results
 results = []
 
-# Create a directory to store audio files
+# Create directories to store audio files and cache
 os.makedirs('audio_files', exist_ok=True)
+os.makedirs('cache', exist_ok=True)
+
+# Load processed URLs from cache
+processed_urls_file = 'cache/processed_urls.json'
+if os.path.exists(processed_urls_file):
+    with open(processed_urls_file, 'r') as f:
+        processed_urls = json.load(f)
+else:
+    processed_urls = []
 
 # Function to download audio and transcribe
 def process_video(url):
+    if url in processed_urls:
+        print(f'Skipping already processed video: {url}')
+        return
     try:
         # Extract video ID from URL
         video_id = url.split('=')[-1]
@@ -49,19 +63,57 @@ def process_video(url):
             'URL': url,
             'Title': title,
             'Description': description,
-            'Transcript': transcript
+            'Content': transcript
         })
 
-        print(f'Processed: {title}')
+        # Mark URL as processed
+        processed_urls.append(url)
+        print(f'Processed video: {title}')
     except Exception as e:
-        print(f'Error processing {url}: {e}')
+        print(f'Error processing video {url}: {e}')
+
+# Function to extract article headline and content
+def process_article(url):
+    if url in processed_urls:
+        print(f'Skipping already processed article: {url}')
+        return
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Extract title and content
+        title = soup.title.string if soup.title else 'N/A'
+        content = ' '.join(p.get_text() for p in soup.find_all('p'))
+
+        # Append results
+        results.append({
+            'URL': url,
+            'Title': title,
+            'Description': 'N/A',
+            'Content': content
+        })
+
+        # Mark URL as processed
+        processed_urls.append(url)
+        print(f'Processed article: {title}')
+    except Exception as e:
+        print(f'Error processing article {url}: {e}')
 
 # Process each video URL
-for video_url in config['videos']:
+for video_url in config.get('videos', []):
     process_video(video_url)
+
+# Process each article URL
+for article_url in config.get('articles', []):
+    process_article(article_url)
 
 # Save results to CSV
 df = pd.DataFrame(results)
-df.to_csv('transcriptions.csv', index=False)
+df.to_csv('content.csv', index=False)
 
-print('Transcriptions saved to transcriptions.csv')
+# Update processed URLs cache
+with open(processed_urls_file, 'w') as f:
+    json.dump(processed_urls, f)
+
+print('Content saved to content.csv')

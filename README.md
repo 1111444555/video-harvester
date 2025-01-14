@@ -9,4 +9,4 @@ pip install -r requirements.txt
 python3 scrapev2.py 
 ```
 
-- output should be transcriptions.csv in the same folder
+- output should be content.csv in the same folder
