@@ -5,6 +5,7 @@ import json
 import os
 import requests
 from bs4 import BeautifulSoup
+import time
 
 # Load configuration
 with open('./config.json', 'r') as f:
@@ -78,7 +79,16 @@ def process_article(url):
         print(f'Skipping already processed article: {url}')
         return
     try:
-        response = requests.get(url)
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        response = requests.get(url, headers=headers)
+        #response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -103,10 +113,13 @@ def process_article(url):
 # Process each video URL
 for video_url in config.get('videos', []):
     process_video(video_url)
+    time.sleep(2)
 
 # Process each article URL
 for article_url in config.get('articles', []):
     process_article(article_url)
+    time.sleep(2)
+
 
 # Save results to CSV
 df = pd.DataFrame(results)
