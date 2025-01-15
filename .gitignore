@@ -1,1 +1,4 @@
 audio_files/
+build/
+cache/
+dist/
