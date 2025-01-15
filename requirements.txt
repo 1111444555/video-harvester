@@ -3,3 +3,4 @@ yt-dlp
 pydub
 openai-whisper
 pandas
+pyqt5
