@@ -4,3 +4,5 @@ pydub
 openai-whisper
 pandas
 pyqt5
+bs4
+requests
