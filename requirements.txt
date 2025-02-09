@@ -6,3 +6,8 @@ pandas
 pyqt5
 bs4
 requests
+selenium
+nltk
+spacy
+torch
+torchvision

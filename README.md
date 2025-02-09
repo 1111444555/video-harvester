@@ -6,12 +6,13 @@
 
 ```
 pip install -r requirements.txt
+python3 -c "import nltk ; nltk.download('punkt_tab')  ; nltk.download('averaged_perceptron_tagger_eng')" 
 python3 scrapev3.py 
 
 If you are using Windows, run following command(s) in terminal(only one time) to build .exe
 
 pip3 install pyinstaller
-pyinstaller --onefile --noconsole scrapev3.py
+pyinstaller --onefile --noconsole scrapev6.py
 
 ```
 

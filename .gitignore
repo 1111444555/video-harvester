@@ -2,3 +2,7 @@ audio_files/
 build/
 cache/
 dist/
+temp/
+cookies.txt 
+*.csv
+*.xlsx
