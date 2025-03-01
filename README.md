@@ -6,8 +6,10 @@
 
 ```
 pip install -r requirements.txt
-python3 -c "import nltk ; nltk.download('punkt_tab')  ; nltk.download('averaged_perceptron_tagger_eng')" 
-python3 scrapev3.py 
+python3 -c "import nltk ; nltk.download('punkt_tab')  ; nltk.download
+('averaged_perceptron_tagger_eng')" 
+python3 -m spacy download en_core_web_sm
+python3 scrapev6.py 
 
 If you are using Windows, run following command(s) in terminal(only one time) to build .exe
 
