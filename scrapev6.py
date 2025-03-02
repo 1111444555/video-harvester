@@ -13,6 +13,7 @@ import json
 import sys
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+from langdetect import detect
 
 import nltk
 import spacy
@@ -20,6 +21,8 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from collections import Counter
 import string
+
+from translator import MbartTranslator
 
 # Ensure necessary NLTK data is downloaded
 nltk.download('punkt')
@@ -40,6 +43,7 @@ class ProcessorWorker(QObject):
         self.video_urls = video_urls
         self.article_urls = article_urls
         self.output_file = output_file
+        self.translator=MbartTranslator()
 
     def process(self):
         try:
@@ -49,7 +53,7 @@ class ProcessorWorker(QObject):
 
             # Load Whisper Model
             self.log_signal.emit(f"Loading Whisper model: {self.model_name}")
-            model = whisper.load_model(self.model_name, device=device)
+            #model = whisper.load_model(self.model_name, device=device)
 
             # Load T5 model for tag generation
             self.log_signal.emit("Loading T5 model for tag generation...")
@@ -135,13 +139,13 @@ class ProcessorWorker(QObject):
                         info_dict = ydl.extract_info(url, download=True)
                         title = info_dict.get("title", "N/A")
                         description = info_dict.get("description", "N/A")
-                    result = model.transcribe(audio_path)
-                    transcript = result["text"]
+                    #result = model.transcribe(audio_path)
+                    #transcript = result["text"]
                     results.append({
                         "URL": url,
                         "Title": title,
                         "Description": description,
-                        "Content": transcript,
+                        "Content": "",
                     })
                     processed_urls.append(url)
                     self.log_signal.emit(f"Processed video: {title}")
@@ -177,62 +181,39 @@ class ProcessorWorker(QObject):
                         info_dict = ydl.extract_info(url, download=True)
                         title = info_dict.get("title", "N/A")
                         description = info_dict.get("description", "N/A")
+                        transcript=description
+                        detected_lang = detect(title)
+                        tags=None
+                        translated_title=""
+
+                        if detected_lang != "en":
+                            translated_transcript=self.translator.translate(description,detected_lang,"en_XX")
+                            translated_title=self.translator.translate(title,detected_lang,"en_XX")
+                            tags = generate_tags(translated_title, translated_transcript)
+                    #result = model.transcribe(audio_path)
+
+                            results.append({
+                                "HEADLINE": f"{translated_title} \n {title}",
+                                "WEBLINK": url,
+                                "CONTENT": f"{translated_transcript} \n {description}",
+                                "NOTES": "",
+                                "TAG": tags
+                            })
+
+                        else:
+                            tags = generate_tags(title, transcript)
                     
-                    result = model.transcribe(audio_path)
-                    transcript = result["text"]
-                    
-                    tags = generate_tags(title, transcript)
-                    
-                    results.append({
-                        "HEADLINE": title,
-                        "WEBLINK": url,
-                        "CONTENT": description,
-                        "NOTES": "",
-                        "TAG": tags
-                    })
+                        results.append({
+                            "HEADLINE": title,
+                            "WEBLINK": url,
+                            "CONTENT": description,
+                            "NOTES": "",
+                            "TAG": tags
+                        })
                     processed_urls.append(url)
                     self.log_signal.emit(f"Processed video: {title}")
                 except Exception as e:
                     self.log_signal.emit(f"Error processing video {url}: {e}")
-
-            # Process videos
-            # def process_video(url):
-            #     if url in processed_urls:
-            #         self.log_signal.emit(f"Skipping already processed video: {url}")
-            #         return
-            #     try:
-            #         video_id = url.split("=")[-1]
-            #         audio_path = f"audio_files/{video_id}.wav"
-            #         ydl_opts = {
-            #             "format": "bestaudio/best",
-            #             "outtmpl": f"audio_files/{video_id}.%(ext)s",
-            #             "postprocessors": [{
-            #                 "key": "FFmpegExtractAudio",
-            #                 "preferredcodec": "wav",
-            #                 "preferredquality": "192",
-            #             }],
-            #         }
-            #         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            #             info_dict = ydl.extract_info(url, download=True)
-            #             title = info_dict.get("title", "N/A")
-            #             description = info_dict.get("description", "N/A")
-                    
-            #         result = model.transcribe(audio_path)
-            #         transcript = result["text"]
-                    
-            #         tags = generate_tags(title, transcript)
-                    
-            #         results.append({
-            #             "HEADLINE": title,
-            #             "WEBLINK": url,
-            #             "CONTENT": description,
-            #             "NOTES": "",
-            #             "TAG": tags
-            #         })
-            #         processed_urls.append(url)
-            #         self.log_signal.emit(f"Processed video: {title}")
-            #     except Exception as e:
-            #         self.log_signal.emit(f"Error processing video {url}: {e}")
 
             # Process articles
             def process_article(url):
@@ -249,16 +230,39 @@ class ProcessorWorker(QObject):
                     paragraphs = soup.find_all("p")
                     first_paragraph = paragraphs[0].get_text() if paragraphs else "N/A"
                     full_content = " ".join(p.get_text() for p in paragraphs)
-                    
-                    tags = generate_tags(title, full_content)
-                    
-                    results.append({
-                        "HEADLINE": title,
-                        "WEBLINK": url,
-                        "CONTENT": first_paragraph,
-                        "NOTES": "",
-                        "TAG": tags
-                    })
+                    detected_lang = detect(full_content)
+                    if detected_lang != "en":
+                        self.log_signal.emit(f"Detected Language: {detected_lang}")
+                        translated_content=self.translator.translate(first_paragraph,detected_lang,"en_XX")
+                        translated_title=f"""{self.translator.translate(title,detected_lang,"en_XX")} \n {title}"""
+                        self.log_signal.emit(f"Translated 1st para: {translated_content}")
+                        self.log_signal.emit(f"Translated title: {translated_title}")
+                        tags = generate_tags(translated_title, translated_content)
+                        self.log_signal.emit(f"Tags: {tags}")
+                        
+
+                        results.append({
+                            "HEADLINE": translated_title,
+                            "WEBLINK": url,
+                            "CONTENT": translated_content,
+                            "NOTES": "",
+                            "TAG": tags
+                        })
+
+                    else:
+                        tags = generate_tags(title, first_paragraph)
+
+                        self.log_signal.emit(f"Tags: {tags}")
+
+                        results.append({
+                            "HEADLINE": title,
+                            "WEBLINK": url,
+                            "CONTENT": first_paragraph,
+                            "NOTES": "",
+                            "TAG": tags
+                        })
+
+
                     processed_urls.append(url)
                     self.log_signal.emit(f"Processed article: {title}")
                 except Exception as e:
@@ -279,6 +283,8 @@ class ProcessorWorker(QObject):
 
             # Save results
             df = pd.DataFrame(results)
+            # Replace empty cells with a single space to prevent Google Sheets from merging them
+            df.fillna(" ", inplace=True)
             df.to_excel(self.output_file, index=False, engine='openpyxl')
             with open(processed_urls_file, "w") as f:
                 json.dump(processed_urls, f)

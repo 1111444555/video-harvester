@@ -12,3 +12,6 @@ spacy
 torch
 torchvision
 transformers
+sentencepiece
+openpyxl
+langdetect
